@@ -4,11 +4,13 @@ import json
 from typing import Optional, Tuple, Dict, Any
 from pydantic import BaseModel, Field, ValidationError
 
+
 class Tools:
     class Valves(BaseModel):
         """
         Configuration valves for Open WebUI Home Assistant Current Date Time Tool.
         """
+
         HA_URL: str = Field(
             default="https://my-home-assistant.local:8123",
             description="URL of the home assistant instance.",
@@ -50,7 +52,10 @@ class Tools:
             except json.JSONDecodeError:
                 return None, f"Invalid JSON from sensor '{sensor_name}'."
         except requests.HTTPError as e:
-            return None, f"HTTP error for '{sensor_name}': {e} (status {response.status_code})"
+            return (
+                None,
+                f"HTTP error for '{sensor_name}': {e} (status {response.status_code})",
+            )
         except requests.RequestException as e:
             return None, f"Network error fetching '{sensor_name}': {str(e)}"
 
@@ -77,7 +82,9 @@ class Tools:
 
         sensor_url = f"{HA_URL}/api/states/{HA_DATE_TIME_SENSOR_NAME}"
 
-        data, err = self._fetch_sensor_data(sensor_url, headers, HA_DATE_TIME_SENSOR_NAME)
+        data, err = self._fetch_sensor_data(
+            sensor_url, headers, HA_DATE_TIME_SENSOR_NAME
+        )
         if err:
             return json.dumps({"error": err})
 
