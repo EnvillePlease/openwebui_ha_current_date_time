@@ -2,7 +2,7 @@
 # Script Name : openwebui_ha_current_date_time_tool.py
 # Author      : Clark Nelson
 # Company     : CNSoft OnLine
-# Version     : 1.0.3
+# Version     : 1.0.4
 # -----------------------------------------------------------------------------
 
 import requests
@@ -32,7 +32,7 @@ class Tools:
         )
         HA_TIMEZONE: str = Field(
             default="Europe/London",
-            description="Name of the sensor in home assistant that contains the date/time.",
+            description="Timezone used for date/time operations.",
         )
 
     def __init__(self) -> None:
@@ -65,7 +65,7 @@ class Tools:
         except requests.Timeout:
             return None, f"Timeout while fetching '{sensor_name}'."
         except requests.HTTPError as e:
-            return None, f"HTTP error for '{sensor_name}': {e} (status {response.status_code})"
+            return None, f"HTTP error for '{sensor_name}': {e} (status {e.response.status_code if e.response else 'unknown'})"
         except requests.RequestException as e:
             return None, f"Network error fetching '{sensor_name}': {str(e)}"
 
@@ -116,7 +116,7 @@ class Tools:
         # --- end robust date parsing ---
         
         if current_date_time is None:
-            logging.exception("Error extracting state from sensor data.")
+            logging.exception(f"Error extracting state from sensor data for sensor '{config['HA_DATE_TIME_SENSOR_NAME']}'. Data received: {data}")
             return json.dumps({"error": "No 'state' field in sensor data."})
 
         result = {"current_date_time": current_date_time,
