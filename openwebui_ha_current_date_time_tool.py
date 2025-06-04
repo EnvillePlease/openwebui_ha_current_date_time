@@ -2,22 +2,19 @@
 # Script Name : openwebui_ha_current_date_time_tool.py
 # Author      : Clark Nelson
 # Company     : CNSoft OnLine
-# Version     : 1.0.0
+# Version     : 1.0.1
 # -----------------------------------------------------------------------------
 
-import os
 import requests
 import json
 from typing import Optional, Tuple, Dict, Any
 from pydantic import BaseModel, Field, ValidationError
-
 
 class Tools:
     class Valves(BaseModel):
         """
         Configuration valves for Open WebUI Home Assistant Current Date Time Tool.
         """
-
         HA_URL: str = Field(
             default="https://my-home-assistant.local:8123",
             description="URL of the home assistant instance.",
@@ -31,7 +28,7 @@ class Tools:
             description="Name of the sensor in home assistant that contains the date/time.",
         )
 
-    def __init__(self):
+    def __init__(self) -> None:
         try:
             self.valves = self.Valves()
         except ValidationError as e:
@@ -58,11 +55,10 @@ class Tools:
                 return response.json(), None
             except json.JSONDecodeError:
                 return None, f"Invalid JSON from sensor '{sensor_name}'."
+        except requests.Timeout:
+            return None, f"Timeout while fetching '{sensor_name}'."
         except requests.HTTPError as e:
-            return (
-                None,
-                f"HTTP error for '{sensor_name}': {e} (status {response.status_code})",
-            )
+            return None, f"HTTP error for '{sensor_name}': {e} (status {response.status_code})"
         except requests.RequestException as e:
             return None, f"Network error fetching '{sensor_name}': {str(e)}"
 
@@ -73,34 +69,28 @@ class Tools:
         Returns:
             JSON string with the current date and time, or error message.
         """
-        HA_URL = self.valves.HA_URL.strip()
-        HA_API_TOKEN = self.valves.HA_API_TOKEN.strip()
-        HA_DATE_TIME_SENSOR_NAME = self.valves.HA_DATE_TIME_SENSOR_NAME.strip()
+        config = {
+            "HA_URL": self.valves.HA_URL.strip(),
+            "HA_API_TOKEN": self.valves.HA_API_TOKEN.strip(),
+            "HA_DATE_TIME_SENSOR_NAME": self.valves.HA_DATE_TIME_SENSOR_NAME.strip(),
+        }
+        for key, value in config.items():
+            if not value:
+                return json.dumps({"error": f"{key} is not set."})
 
-        # Check for missing configuration
-        if not HA_URL:
-            return json.dumps({"error": "HA_URL is not set."})
-        if not HA_API_TOKEN:
-            return json.dumps({"error": "HA_API_TOKEN is not set."})
-        if not HA_DATE_TIME_SENSOR_NAME:
-            return json.dumps({"error": "HA_DATE_TIME_SENSOR_NAME is not set."})
+        headers = {
+            "Authorization": f"Bearer {config['HA_API_TOKEN']}",
+            "Content-Type": "application/json"
+        }
+        sensor_url = f"{config['HA_URL']}/api/states/{config['HA_DATE_TIME_SENSOR_NAME']}"
 
-        headers = {"Authorization": f"Bearer {HA_API_TOKEN}"}
-
-        sensor_url = f"{HA_URL}/api/states/{HA_DATE_TIME_SENSOR_NAME}"
-
-        data, err = self._fetch_sensor_data(
-            sensor_url, headers, HA_DATE_TIME_SENSOR_NAME
-        )
+        data, err = self._fetch_sensor_data(sensor_url, headers, config['HA_DATE_TIME_SENSOR_NAME'])
         if err:
             return json.dumps({"error": err})
 
-        try:
-            current_date_time = data.get("state")
-            if current_date_time is None:
-                return json.dumps({"error": "No 'state' field in sensor data."})
-        except Exception as e:
-            return json.dumps({"error": f"Error extracting attributes: {str(e)}"})
+        current_date_time = data.get("state") if data else None
+        if current_date_time is None:
+            return json.dumps({"error": "No 'state' field in sensor data."})
 
         result = {"current_date_time": current_date_time}
         return json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True)
