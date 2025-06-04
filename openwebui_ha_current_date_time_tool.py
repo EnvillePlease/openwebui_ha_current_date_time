@@ -2,7 +2,7 @@
 # Script Name : openwebui_ha_current_date_time_tool.py
 # Author      : Clark Nelson
 # Company     : CNSoft OnLine
-# Version     : 1.0.1
+# Version     : 1.0.2
 # -----------------------------------------------------------------------------
 
 import requests
@@ -25,6 +25,10 @@ class Tools:
         )
         HA_DATE_TIME_SENSOR_NAME: str = Field(
             default="",
+            description="Name of the sensor in home assistant that contains the date/time.",
+        )
+        HA_TIMEZONE: str = Field(
+            default="Europe/London",
             description="Name of the sensor in home assistant that contains the date/time.",
         )
 
@@ -73,6 +77,7 @@ class Tools:
             "HA_URL": self.valves.HA_URL.strip(),
             "HA_API_TOKEN": self.valves.HA_API_TOKEN.strip(),
             "HA_DATE_TIME_SENSOR_NAME": self.valves.HA_DATE_TIME_SENSOR_NAME.strip(),
+            "HA_TIMEZONE": self.valves.HA_TIMEZONE.strip(),
         }
         for key, value in config.items():
             if not value:
@@ -92,5 +97,7 @@ class Tools:
         if current_date_time is None:
             return json.dumps({"error": "No 'state' field in sensor data."})
 
-        result = {"current_date_time": current_date_time}
+        result = {"current_date_time": current_date_time,
+                  "timezone": config['HA_TIMEZONE']
+        }
         return json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True)
