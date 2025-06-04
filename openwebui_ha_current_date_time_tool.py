@@ -2,13 +2,16 @@
 # Script Name : openwebui_ha_current_date_time_tool.py
 # Author      : Clark Nelson
 # Company     : CNSoft OnLine
-# Version     : 1.0.2
+# Version     : 1.0.3
 # -----------------------------------------------------------------------------
 
 import requests
 import json
+import logging
 from typing import Optional, Tuple, Dict, Any
 from pydantic import BaseModel, Field, ValidationError
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 class Tools:
     class Valves(BaseModel):
@@ -81,6 +84,7 @@ class Tools:
         }
         for key, value in config.items():
             if not value:
+                logging.error(f"Error fetching value for {key}.")
                 return json.dumps({"error": f"{key} is not set."})
 
         headers = {
@@ -93,8 +97,26 @@ class Tools:
         if err:
             return json.dumps({"error": err})
 
-        current_date_time = data.get("state") if data else None
+        current_date_time_str = data.get("state") if data else None
+        
+        # --- Robust date parsing and timezone encoding ---
+        current_date_time = current_date_time_str  # fallback
+        if current_date_time_str:
+            try:
+                # Remove comma and extra spaces
+                dt_str = current_date_time_str.replace(",", "").strip()
+                # Try parsing as "YYYY-MM-DD HH:MM"
+                dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
+                # Attach timezone
+                dt = dt.replace(tzinfo=ZoneInfo(config['HA_TIMEZONE']))
+                current_date_time = dt.isoformat()
+            except Exception as e:
+                logging.warning(f"Could not parse or encode timezone for current_date_time: {e}")
+                current_date_time = current_date_time_str
+        # --- end robust date parsing ---
+        
         if current_date_time is None:
+            logging.exception("Error extracting state from sensor data.")
             return json.dumps({"error": "No 'state' field in sensor data."})
 
         result = {"current_date_time": current_date_time,
